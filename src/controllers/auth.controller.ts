@@ -22,3 +22,8 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 export const logout = asyncHandler(async (_req: Request, res: Response) => {
   successResponse(res, null, 'Logged out successfully');
 });
+
+export const updateMe = asyncHandler(async (req: Request, res: Response) => {
+  const user = await authService.updateCurrentUser(req.user!.id, req.body);
+  successResponse(res, user, 'Profile updated');
+});

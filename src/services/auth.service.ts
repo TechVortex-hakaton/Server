@@ -83,3 +83,47 @@ export const getCurrentUser = async (userId: string) => {
   }
   return user;
 };
+
+type UpdateMeInput = {
+  fullName?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
+
+export const updateCurrentUser = async (userId: string, input: UpdateMeInput) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new AppError(404, 'User not found');
+  }
+
+  const wantsSensitiveChange = !!input.email || !!input.newPassword;
+  if (wantsSensitiveChange) {
+    if (!input.currentPassword) {
+      throw new AppError(400, 'currentPassword is required to change email or password');
+    }
+    const valid = await comparePassword(input.currentPassword, user.password);
+    if (!valid) {
+      throw new AppError(401, 'Current password is incorrect');
+    }
+  }
+
+  const data: { fullName?: string; email?: string; password?: string } = {};
+  if (input.fullName) {
+    data.fullName = input.fullName;
+  }
+
+  if (input.email && input.email !== user.email) {
+    const existing = await prisma.user.findUnique({ where: { email: input.email } });
+    if (existing) {
+      throw new AppError(409, 'Email already in use');
+    }
+    data.email = input.email;
+  }
+
+  if (input.newPassword) {
+    data.password = await hashPassword(input.newPassword);
+  }
+
+  return prisma.user.update({ where: { id: userId }, data, select: publicUserSelect });
+};
